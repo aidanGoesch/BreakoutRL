@@ -1,6 +1,9 @@
 import pygame as pg
 from time import time
-import math
+
+from agent import Agent
+from state import State
+
 
 HEIGHT, WIDTH, OFFSET = 50, 100, 5
 
@@ -45,9 +48,18 @@ class Ball:
         self.paddle_hit = False
 
 
-    def update(self, squares, paddle, paddle_rect):
+    def get_velocity(self):
+        return self.velocity[0], self.velocity[1]
+
+
+    def update(self, squares, paddle, start_time):
         # update the coordinate
         self.coordinate = (self.coordinate[0] + self.velocity[0], self.coordinate[1] + self.velocity[1])
+
+        alpha = 1.00005
+
+        self.velocity = pg.Vector2(alpha * self.velocity[0], alpha * self.velocity[1])
+        # print(self.velocity, alpha)
 
         # check collisions
         y, x = self.coordinate
@@ -101,7 +113,10 @@ class Ball:
                         to_remove.append((i, j))
 
         for i, j in to_remove:
-            squares[i].pop(j)
+            try:
+                squares[i].pop(j)
+            except IndexError:
+                print("whoops")
 
         return squares
 
@@ -109,13 +124,12 @@ class Ball:
 
 class Breakout:
     def __init__(self):
+        pg.init()
+
         self.screen = pg.display.set_mode((800, 600))
         pg.display.set_caption('Breakout')
         self.clock = pg.time.Clock()
-        self.fps = 120
-        self.lives = 3
-        self.score = 0
-        self.lives_score = 0
+        self.fps = 1200
 
         self.running = True
 
@@ -125,6 +139,11 @@ class Breakout:
 
         self.paddle_right = False
         self.paddle_left = False
+
+        self.start_time = time()
+
+        self.agent = Agent()
+        self.iterations = 0
 
     def draw(self, paddle_rect):
         self.screen.fill((0, 0, 0))
@@ -174,16 +193,39 @@ class Breakout:
         self.running = False
 
 
-    def check_win_lose(self):
-        if all(len(row) == 0 for row in self.board):
-            self.win()
+    def reset(self):
+        print(f"iterations: {self.iterations}     epsilon = {self.agent.e}     reward = {self.agent.total_reward_this_iteration}")
+        self.iterations += 1
+        self.clock = pg.time.Clock()
+        # self.fps = 120
 
-        if self.ball.coordinate[0] > 600:
-            self.lose()
+        self.agent.total_reward_this_iteration = 0
+
+        self.running = True
+
+        self.board = [[BreakoutSquare(y, x) for x in range(8)] for y in range(8)]
+        self.paddle = Paddle()
+        self.ball = Ball()
+
+        self.paddle_right = False
+        self.paddle_left = False
+
+        self.start_time = time()
+
+
+    def check_win_lose(self, state : State, action):
+        if all(len(row) == 0 for row in self.board):  # win condition
+            self.agent.update(state, action, reward=50)
+            self.reset()
+
+        if self.ball.coordinate[0] > 600:  # lose condition
+            self.agent.update(state, action, reward=-10)
+            self.reset()
 
 
 
     def run(self):
+        prev_action = "RIGHT"
         while self.running:
             self.clock.tick(self.fps)
 
@@ -191,16 +233,30 @@ class Breakout:
             paddle_rect = pg.Rect(0, 0, WIDTH, 25)
             paddle_rect.center = px, py
 
-            self.board = self.ball.update(self.board, self.paddle, paddle_rect)
+            state = State(self.ball.get_velocity(), self.ball.coordinate[0], self.ball.coordinate[1], px)
 
-            self.check_win_lose()
+            y, x = self.ball.coordinate
+            if (self.paddle.y_loc - 12.5 < y + 10 < self.paddle.y_loc and  # make sure that the ball can't be hit by
+                    (self.paddle.x - 50 < x < self.paddle.x + 50)):
+                self.agent.update(state, prev_action, 2 * (1 - abs(self.paddle.x - x) / 50))  # make it so that you get more reward for hitting it in the cetner of the paddle
+            else:
+                self.agent.update(state, prev_action)
+            prev_action = self.agent.act(state)
+
+            if prev_action == "LEFT":
+                self.paddle.left()
+            elif prev_action == "RIGHT":
+                self.paddle.right()
+
+            self.board = self.ball.update(self.board, self.paddle, self.start_time)
+
+            self.check_win_lose(state, prev_action)
 
             self.draw(paddle_rect)
             self.handle_events()
 
 
 if __name__ == "__main__":
-    pg.init()
     breakout = Breakout()
 
     breakout.run()

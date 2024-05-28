@@ -1,6 +1,7 @@
+from src.breakout import Breakout
 
 def main():
-    print("hello world")
+    Breakout().run()
 
 
 if __name__ == "__main__":
