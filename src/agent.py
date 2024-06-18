@@ -59,54 +59,6 @@ class Agent:
 
         return action
 
-    # def update_value(self, reward = 0):
-    #     # update the action value function for the previous state
-    #     # print(self.q[self.current_state], GAMMA * self.q[max(self.current_state.next_state, key=lambda x: self.q[x])])
-    #     self.q[self.current_state] = (self.q[self.current_state]
-    #                                   + ALPHA * (reward + GAMMA * self.q[max(self.current_state.next_state,
-    #                                                                   key=lambda x: self.q[x])]  # get the max Q(s+1, a)
-    #                                              - self.q[self.current_state]))
-    # # def punish(self, state : State):
-    # #     self.current_state.next_state.append(state)  # there are multiple next states (e.g. left or right)
-    # #     state.previous_state = self.current_state
-    # #
-    # #     self.update_value(reward=-10)
-    # #
-    # # def reward(self, state : State):
-    # #     self.current_state.next_state.append(state)  # there are multiple next states (e.g. left or right)
-    # #     state.previous_state = self.current_state
-    # #
-    # #     self.update_value(reward=1)
-    #
-    #
-    # def act(self):
-    #     action = ""
-    #     if len(self.current_state.next_state) == 0:
-    #         action = random.choice(["LEFT", "RIGHT"])
-    #
-    #     elif len(self.current_state.next_state) == 1:   # explore if it only has taken one action from that state
-    #         print(1)
-    #         tmp = self.current_state.next_state[0].action_from_previous_state
-    #
-    #         if tmp == "LEFT":
-    #             action = "RIGHT"
-    #         else:
-    #             action = "RIGHT"
-    #
-    #     elif len(self.current_state.next_state) == 2:   # take the action with the highest value
-    #         action = max(self.current_state.next_state, key=lambda x : self.q[x]).action_from_previous_state
-    #
-    #         if random.random() < EPSILON:   # epslion greedy
-    #             if action == "LEFT":
-    #                 action = "RIGHT"
-    #             else:
-    #                 action = "RIGHT"
-    #
-    #     self.prev_action = action
-    #     return action
-
-
-
 
 if __name__ == '__main__':
     a = Agent()
