@@ -4,6 +4,8 @@ import math
 
 from agent import Agent
 from state import State
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 HEIGHT, WIDTH, OFFSET = 50, 100, 5
@@ -134,7 +136,7 @@ class Breakout:
 
         self.running = True
 
-        self.board = [[BreakoutSquare(y, x) for x in range(8)] for y in range(8)]
+        self.board = [[BreakoutSquare(y, x) for x in range(8)] for y in range(1, 8)]
         self.paddle = Paddle()
         self.ball = Ball()
 
@@ -145,6 +147,9 @@ class Breakout:
 
         self.agent = Agent()
         self.iterations = 0
+
+        self.score = 0
+        self.scores = []
 
     def draw(self, paddle_rect):
         self.screen.fill((0, 0, 0))
@@ -187,8 +192,6 @@ class Breakout:
     def win(self):
         self.running = False
 
-        # use this to change some sort of reward signal
-
 
     def lose(self):
         self.running = False
@@ -202,7 +205,7 @@ class Breakout:
 
         self.running = True
 
-        self.board = [[BreakoutSquare(y, x) for x in range(8)] for y in range(8)]
+        self.board = [[BreakoutSquare(y, x) for x in range(8)] for y in range(1, 8)]
         self.paddle = Paddle()
         self.ball = Ball()
 
@@ -211,55 +214,72 @@ class Breakout:
 
         self.start_time = time()
 
+        print("iteration score:", self.score)
+        self.scores.append(self.score)
+
+        self.score = 0
+
+        if len(self.scores) % 100 == 0:
+            x = np.arange(1, len(self.scores) + 1)
+            plt.scatter(x, self.scores)
+
+            # calc the trendline
+            z = np.polyfit(x, self.scores, 1)
+            p = np.poly1d(z)
+            plt.plot(x, p(x), "r--")
+            plt.show()
+
         # self.agent.reset()
-
-
-    def check_win_lose(self, state : State, action):
-        if all(len(row) == 0 for row in self.board):  # win condition
-            self.agent.update(state, action, reward=50)
-            self.reset()
-
-        if self.ball.coordinate[0] > 600:  # lose condition
-            r = self.calculate_reward()     # less punishment if the ball is close to the paddle during loss
-            print(r)
-            self.agent.update(state, action, reward=r)
-            self.reset()
 
     def calculate_reward(self):
         return - math.sqrt(((self.ball.coordinate[0] - self.paddle.y_loc) ** 2 + (self.ball.coordinate[1] - self.paddle.x) ** 2)) / 85
 
     def run(self):
-        prev_action = "RIGHT"
+        prev_state = State(self.ball.velocity[0], self.ball.velocity[1], self.ball.coordinate[0], self.ball.coordinate[1], self.paddle.x)
         while self.running:
             self.clock.tick(self.fps)
+
+            action = self.agent.act(prev_state)
 
             py, px = self.paddle.get_coordinate()
             paddle_rect = pg.Rect(0, 0, WIDTH, 25)
             paddle_rect.center = px, py
 
-            state = State(self.ball.get_velocity(), self.ball.coordinate[0], self.ball.coordinate[1], px)
+            state = State(self.ball.velocity[0], self.ball.velocity[1], self.ball.coordinate[0], self.ball.coordinate[1], px)
 
-            y, x = self.ball.coordinate
-            if (self.paddle.y_loc - 12.5 < y + 10 < self.paddle.y_loc and  # make sure that the ball can't be hit by
-                    (self.paddle.x - 50 < x < self.paddle.x + 50)):
-                self.agent.update(state, prev_action, 2 * (1 - abs(self.paddle.x - x) / 50))  # make it so that you get more reward for hitting it in the cetner of the paddle
-            else:
-                self.agent.update(state, prev_action)
-            prev_action = self.agent.act(state)
-
-            if prev_action == "LEFT":
+            if action == 0:
                 self.paddle.left()
-            elif prev_action == "RIGHT":
+            elif action == 1:
                 self.paddle.right()
+
+            if all(len(row) == 0 for row in self.board):  # win condition
+                self.score += 50
+                self.agent.update(prev_state, action, 50, state, True)
+                self.reset()
+            elif self.ball.coordinate[0] > 600:  # lose condition
+                r = self.calculate_reward()     # less punishment if the ball is close to the paddle during loss
+                self.score += r
+                self.agent.update(prev_state, action, r, state, True)
+                self.reset()
+            else:
+                # reward for paddle hitting the ball
+                y, x = self.ball.coordinate
+                if (self.paddle.y_loc - 12.5 < y + 10 < self.paddle.y_loc and (
+                        self.paddle.x - 50 < x < self.paddle.x + 50)):
+                    reward = 1.0
+                else:
+                    reward = 0.0
+
+                self.score += reward
+                self.agent.update(prev_state, action, reward, state, False)
 
             self.board = self.ball.update(self.board, self.paddle, self.start_time)
 
-            # self.agent.path.append(state)   # add it to the eligibility trace path
-
-            self.check_win_lose(state, prev_action)
-
             self.draw(paddle_rect)
             self.handle_events()
+
+            self.agent.learn()
+            prev_state = state
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ class DeepQNetwork(nn.Module):
         """forward propagation for the network"""
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        actions = F.relu(self.fc3(x))
+        actions = self.fc3(x)
 
         return actions
 
