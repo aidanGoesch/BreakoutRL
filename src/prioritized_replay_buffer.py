@@ -3,6 +3,7 @@ from state import State
 import random
 
 OFFSET = 0.005
+ALPHA_INCREMENT = 1e-4
 
 class PrioritizedReplayBuffer:
     def __init__(self, mem_size: int, alpha: int):
@@ -68,5 +69,8 @@ class PrioritizedReplayBuffer:
                    self.terminal_states[sample_indices])
 
         importance = self.get_importance(sample_probs[sample_indices])
+
+        # alpha annealing to gradually shift to prioritized sampling
+        self.alpha += ALPHA_INCREMENT
         return samples, sample_indices, importance
 
