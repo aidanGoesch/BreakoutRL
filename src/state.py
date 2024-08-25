@@ -1,7 +1,9 @@
+import numpy as np
 
 class State:
-    def __init__(self, velocity, ball_y, ball_x, paddle_x, paddle_y=550):
-        self.velocity = round(velocity[0], 5), round(velocity[1], 5)
+    def __init__(self, y_velocity, x_velocity, ball_y, ball_x, paddle_x, paddle_y=550):
+        self.x_velocity = round(x_velocity, 5)
+        self.y_velocity = round(y_velocity, 5)
         self.ball_y = round(ball_y)
         self.ball_x = round(ball_x)
         self.paddle_x = round(paddle_x)
@@ -16,4 +18,9 @@ class State:
 
 
     def __hash__(self):
-        return hash((self.velocity, self.ball_y, self.ball_x, self.paddle_x, self.paddle_y))
+        return hash((self.x_velocity, self.y_velocity, self.ball_y, self.ball_x, self.paddle_x, self.paddle_y))
+
+
+    def convert_to_vector(self):
+        return np.array([self.x_velocity, self.y_velocity, self.ball_y, self.ball_x, self.paddle_x, self.paddle_y], np.float32)
+
