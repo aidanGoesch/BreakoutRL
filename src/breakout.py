@@ -1,6 +1,7 @@
 import pygame as pg
 from time import time
 import math
+import json
 
 from agent import Agent
 from state import State
@@ -126,7 +127,7 @@ class Ball:
 
 
 class Breakout:
-    def __init__(self):
+    def __init__(self, gen_new_model : bool = False):
         pg.init()
 
         self.screen = pg.display.set_mode((800, 600))
@@ -146,6 +147,12 @@ class Breakout:
         self.start_time = time()
 
         self.agent = Agent()
+
+        if not gen_new_model:
+            print("loading pre-existing model")
+            self.agent.load()
+
+
         self.iterations = 0
 
         self.score = 0
@@ -229,8 +236,6 @@ class Breakout:
             plt.plot(x, p(x), "r--")
             plt.show()
 
-        # self.agent.reset()
-
     def calculate_reward(self):
         return - math.sqrt(((self.ball.coordinate[0] - self.paddle.y_loc) ** 2 + (self.ball.coordinate[1] - self.paddle.x) ** 2)) / 85
 
@@ -281,8 +286,10 @@ class Breakout:
             self.agent.learn()
             prev_state = state
 
+        self.agent.save()
+
 
 if __name__ == "__main__":
-    breakout = Breakout()
+    breakout = Breakout(True)
 
     breakout.run()
