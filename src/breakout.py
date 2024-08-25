@@ -1,5 +1,6 @@
 import pygame as pg
 from time import time
+import math
 
 from agent import Agent
 from state import State
@@ -194,12 +195,10 @@ class Breakout:
 
 
     def reset(self):
-        print(f"iterations: {self.iterations}     epsilon = {self.agent.e}     reward = {self.agent.total_reward_this_iteration}")
+        print(f"iterations: {self.iterations}")
         self.iterations += 1
         self.clock = pg.time.Clock()
         # self.fps = 120
-
-        self.agent.total_reward_this_iteration = 0
 
         self.running = True
 
@@ -212,6 +211,8 @@ class Breakout:
 
         self.start_time = time()
 
+        # self.agent.reset()
+
 
     def check_win_lose(self, state : State, action):
         if all(len(row) == 0 for row in self.board):  # win condition
@@ -219,10 +220,13 @@ class Breakout:
             self.reset()
 
         if self.ball.coordinate[0] > 600:  # lose condition
-            self.agent.update(state, action, reward=-10)
+            r = self.calculate_reward()     # less punishment if the ball is close to the paddle during loss
+            print(r)
+            self.agent.update(state, action, reward=r)
             self.reset()
 
-
+    def calculate_reward(self):
+        return - math.sqrt(((self.ball.coordinate[0] - self.paddle.y_loc) ** 2 + (self.ball.coordinate[1] - self.paddle.x) ** 2)) / 85
 
     def run(self):
         prev_action = "RIGHT"
@@ -249,6 +253,8 @@ class Breakout:
                 self.paddle.right()
 
             self.board = self.ball.update(self.board, self.paddle, self.start_time)
+
+            # self.agent.path.append(state)   # add it to the eligibility trace path
 
             self.check_win_lose(state, prev_action)
 
