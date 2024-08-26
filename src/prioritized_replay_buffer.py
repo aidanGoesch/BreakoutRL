@@ -71,6 +71,6 @@ class PrioritizedReplayBuffer:
         importance = self.get_importance(sample_probs[sample_indices])
 
         # alpha annealing to gradually shift to prioritized sampling
-        self.alpha += ALPHA_INCREMENT
+        # self.alpha += ALPHA_INCREMENT
         return samples, sample_indices, importance
 

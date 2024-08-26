@@ -51,23 +51,25 @@ class Ball:
 
         self.paddle_hit = False
 
-
-    def get_velocity(self):
-        return self.velocity[0], self.velocity[1]
-
-
     def update(self, squares, paddle, start_time):
-        # update the coordinate
+        # update ball coordinate and velocity
         self.coordinate = (self.coordinate[0] + self.velocity[0], self.coordinate[1] + self.velocity[1])
 
         alpha = 1.00005
 
         self.velocity = pg.Vector2(alpha * self.velocity[0], alpha * self.velocity[1])
-        # print(self.velocity, alpha)
 
         # check collisions
-        y, x = self.coordinate
+        self.check_map_boundaries()
 
+        # check for collisions with the paddle
+        self.check_paddle_collisions(paddle)
+
+        # check for collision with squares
+        return self.check_square_collisions(squares)
+
+    def check_map_boundaries(self):
+        y, x = self.coordinate
         # check for collisions with the edge of the map
         if x + self.radius > 800:
             self.velocity = self.velocity.reflect(LEFT_VECTOR)
@@ -78,7 +80,9 @@ class Ball:
         if y - self.radius < 0:
             self.velocity = self.velocity.reflect(DOWN_VECTOR)
 
-        # check for collisions with the paddle
+    def check_paddle_collisions(self, paddle):
+        y, x = self.coordinate
+
         if time() - self.paddle_hit > 1:  # cool down for paddle hits so that it doesn't get stuck in the paddle
             self.paddle_hit = -1
 
@@ -87,10 +91,11 @@ class Ball:
             self.velocity = self.velocity.reflect(UP_VECTOR)
             self.paddle_hit = time()
 
+    def check_square_collisions(self, squares):
+        y, x = self.coordinate
         ball_rect = pg.Rect(0, 0, 2 * self.radius, 2 * self.radius)
         ball_rect.center = x, y
 
-        # check for collision with squares
         to_remove = []
         for i, row in enumerate(squares):
             for j, square in enumerate(row):
@@ -125,7 +130,6 @@ class Ball:
         return squares
 
 
-
 class Breakout:
     def __init__(self, gen_new_model : bool = False):
         pg.init()
@@ -158,10 +162,14 @@ class Breakout:
         self.score = 0
         self.scores = []
 
-    def draw(self, paddle_rect):
+    def draw(self):
         self.screen.fill((0, 0, 0))
 
         # draw the paddle rect
+        py, px = self.paddle.get_coordinate()
+        paddle_rect = pg.Rect(0, 0, WIDTH, 25)
+        paddle_rect.center = px, py
+
         pg.draw.rect(self.screen, (255, 255, 255), paddle_rect)
 
         # draw the ball
@@ -195,14 +203,6 @@ class Breakout:
             self.paddle.left()
         if self.paddle_right:
             self.paddle.right()
-
-    def win(self):
-        self.running = False
-
-
-    def lose(self):
-        self.running = False
-
 
     def reset(self):
         print(f"iterations: {self.iterations}")
@@ -246,47 +246,51 @@ class Breakout:
 
             action = self.agent.act(prev_state)
 
-            py, px = self.paddle.get_coordinate()
-            paddle_rect = pg.Rect(0, 0, WIDTH, 25)
-            paddle_rect.center = px, py
-
-            state = State(self.ball.velocity[0], self.ball.velocity[1], self.ball.coordinate[0], self.ball.coordinate[1], px)
-
-            if action == 0:
-                self.paddle.left()
-            elif action == 1:
-                self.paddle.right()
-
-            if all(len(row) == 0 for row in self.board):  # win condition
-                self.score += 50
-                self.agent.update(prev_state, action, 50, state, True)
-                self.reset()
-            elif self.ball.coordinate[0] > 600:  # lose condition
-                r = self.calculate_reward()     # less punishment if the ball is close to the paddle during loss
-                self.score += r
-                self.agent.update(prev_state, action, r, state, True)
-                self.reset()
-            else:
-                # reward for paddle hitting the ball
-                y, x = self.ball.coordinate
-                if (self.paddle.y_loc - 12.5 < y + 10 < self.paddle.y_loc and (
-                        self.paddle.x - 50 < x < self.paddle.x + 50)):
-                    reward = 1.0
-                else:
-                    reward = 0.0
-
-                self.score += reward
-                self.agent.update(prev_state, action, reward, state, False)
+            state = self.propogate_reward(prev_state, action)
 
             self.board = self.ball.update(self.board, self.paddle, self.start_time)
 
-            self.draw(paddle_rect)
+            self.draw()
             self.handle_events()
 
             self.agent.learn()
             prev_state = state
 
         self.agent.save()
+
+    def propogate_reward(self, prev_state, action):
+        _, px = self.paddle.get_coordinate()
+
+        state = State(self.ball.velocity[0], self.ball.velocity[1], self.ball.coordinate[0], self.ball.coordinate[1],
+                      px)
+
+        if action == 0:
+            self.paddle.left()
+        elif action == 1:
+            self.paddle.right()
+
+        if all(len(row) == 0 for row in self.board):  # win condition
+            self.score += 50
+            self.agent.update(prev_state, action, 50, state, True)
+            self.reset()
+        elif self.ball.coordinate[0] > 600:  # lose condition
+            r = self.calculate_reward()  # less punishment if the ball is close to the paddle during loss
+            self.score += r
+            self.agent.update(prev_state, action, r, state, True)
+            self.reset()
+        else:
+            # reward for paddle hitting the ball
+            y, x = self.ball.coordinate
+            if (self.paddle.y_loc - 12.5 < y + 10 < self.paddle.y_loc and (
+                    self.paddle.x - 50 < x < self.paddle.x + 50)):
+                reward = 1.0
+            else:
+                reward = 0.0
+
+            self.score += reward
+            self.agent.update(prev_state, action, reward, state, False)
+
+        return state
 
 
 if __name__ == "__main__":

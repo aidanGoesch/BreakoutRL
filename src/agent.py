@@ -69,7 +69,7 @@ class Agent:
 
         # Calculate the loss
         self.Q_func.optimizer.zero_grad()
-        loss = (importance_weights * self.Q_func.loss(q_eval, q_target).to(self.Q_func.device)).mean()
+        loss = (importance_weights * self.Q_func.loss(q_target, q_eval).to(self.Q_func.device)).mean()
 
         # Update priorities
         td_errors = (q_target - q_eval).detach().cpu().numpy()
